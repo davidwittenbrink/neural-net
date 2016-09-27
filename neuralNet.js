@@ -5,6 +5,7 @@
   const activations = require('./activations');
   const mse = require('./utils/mse');
   const jsonFile = require('jsonfile');
+  const fs = require("fs");
 
   /**
    * Very basic and minimal implementation of an artiffical neural network. The net
@@ -88,6 +89,7 @@
     this.batchSize = config.batchSize || 1;
     this.learningRate = config.learningRate || 0.3;
     this.numEpochs = config.numEpochs || 10000;
+    this.plotTrainingMse = config.plotTrainingMse || false;
   };
 
   /**
@@ -162,6 +164,75 @@
   };
 
 
+  NeuralNet.prototype.plot = function() {
+
+    const svgWidth = 500,
+          svgHeight = 400,
+          graphXMargin = 30,
+          graphYMargin = 30,
+          graphWidth = svgWidth - graphXMargin,
+          graphHeight = svgHeight - graphYMargin,
+          rasterLineLength = 10;
+
+    const biggestXCoord = this.trainingMses.length;
+    const biggestYcoord = Math.max(...this.trainingMses) * 2;
+    let points = [];
+
+    this.trainingMses.forEach((mse, index) => {
+      let xPercent = index / biggestXCoord;
+      let yPercent = mse / biggestYcoord;
+      points.push([xPercent * graphWidth, svgHeight - (yPercent * graphHeight)]);
+    });
+
+    let ptString = points.map(pt => `${pt[0]},${pt[1]}`).join(" ");
+    let rasterString = "";
+
+    const xRasterStepWidth = graphWidth / 15;
+    const yRasterStepWidth = graphHeight / 15;
+    for (let rasterIndex = 1; rasterIndex < 15; rasterIndex++) {
+      const rasterXPosition = graphXMargin + (rasterIndex * xRasterStepWidth);
+      const rasterYPosition = (rasterIndex * yRasterStepWidth);
+      //console.log(rasterYPosition); return;
+      rasterString += `
+        <line
+          stroke-width="1"
+          stroke="grey"
+          x1="${rasterXPosition}" y1="${graphHeight + (rasterLineLength / 2)}"
+          x2="${rasterXPosition}" y2="${graphHeight - (rasterLineLength / 2)}"/>
+        <line
+          stroke-width="1"
+          stroke="grey"
+          x1="${graphXMargin - (rasterLineLength / 2)}" y1="${rasterYPosition}"
+          x2="${graphXMargin + (rasterLineLength / 2)}" y2="${rasterYPosition}"/>`;
+    }
+
+    const svgString =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 ${svgWidth} ${svgHeight}">
+        <svg viewBox="-${graphXMargin} ${graphYMargin} ${svgWidth} ${svgHeight}">
+          <polyline
+           fill="none"
+           stroke="#0074d9"
+           stroke-width="3"
+           points="${ptString}" />
+          <line stroke-width="1" stroke="grey" x1="0" y1="${svgHeight}" x2="${svgWidth}" y2="${svgHeight}"></line>
+          <line stroke-width="1" stroke="grey" x1="0" y1="${svgHeight}" x2="0"  y2="0"></line>
+         </svg>
+         <text text-anchor="middle" x="${svgWidth / 2}" y="${svgHeight - 5}">Epoch</text>
+         <text text-anchor="middle" style="writing-mode: tb;" x="5" y="${svgHeight / 2}">MSE</text>
+
+         ${rasterString}
+       </svg>`;
+
+    fs.writeFile("./test.svg", svgString, (err) => {
+      if (err) {
+        return console.log(err);
+      }
+      console.log("The file was saved!");
+    });
+
+  }
+
+
   /**
    * @description
    * The net training algorithm. This is based on feedforward and backpropagation 
@@ -195,8 +266,15 @@
           updateBiases(this.layers, this.learningRate);
         }
       });
+      if (this.plotTrainingMse) {
+        let predictions = trainData.map(s => this.predict(s[0]));
+        let errors = predictions.map((p_i, i) => mse(p_i, trainData[i][1]));
+        const avg_err = errors.reduce((last, current) => last + current) / errors.length;
+        this.trainingMses.push(avg_err);
+      }
       crrEpoch++;
     }
+    if (this.plotTrainingMse) this.plot();
   }
 
   /**
