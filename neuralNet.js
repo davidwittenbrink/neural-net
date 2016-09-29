@@ -90,6 +90,7 @@
     this.learningRate = config.learningRate || 0.3;
     this.numEpochs = config.numEpochs || 10000;
     this.plotTrainingMse = config.plotTrainingMse || false;
+    this.trainingMses = [];
   };
 
   /**
@@ -168,11 +169,13 @@
 
     const svgWidth = 500,
           svgHeight = 400,
-          graphXMargin = 30,
-          graphYMargin = 30,
+          graphXMargin = 40,
+          graphYMargin = 40,
           graphWidth = svgWidth - graphXMargin,
           graphHeight = svgHeight - graphYMargin,
-          rasterLineLength = 10;
+          rasterLineLength = 10,
+          nrOfXRasterLines = 10,
+          rasterLabelMargin = 10;
 
     const biggestXCoord = this.trainingMses.length;
     const biggestYcoord = Math.max(...this.trainingMses) * 2;
@@ -187,12 +190,12 @@
     let ptString = points.map(pt => `${pt[0]},${pt[1]}`).join(" ");
     let rasterString = "";
 
-    const xRasterStepWidth = graphWidth / 15;
-    const yRasterStepWidth = graphHeight / 15;
-    for (let rasterIndex = 1; rasterIndex < 15; rasterIndex++) {
+    const xRasterStepWidth = graphWidth / nrOfXRasterLines;
+    const yRasterStepWidth = graphHeight / nrOfXRasterLines;
+    for (let rasterIndex = 1; rasterIndex < nrOfXRasterLines; rasterIndex++) {
       const rasterXPosition = graphXMargin + (rasterIndex * xRasterStepWidth);
       const rasterYPosition = (rasterIndex * yRasterStepWidth);
-      //console.log(rasterYPosition); return;
+
       rasterString += `
         <line
           stroke-width="1"
@@ -203,7 +206,10 @@
           stroke-width="1"
           stroke="grey"
           x1="${graphXMargin - (rasterLineLength / 2)}" y1="${rasterYPosition}"
-          x2="${graphXMargin + (rasterLineLength / 2)}" y2="${rasterYPosition}"/>`;
+          x2="${graphXMargin + (rasterLineLength / 2)}" y2="${rasterYPosition}"/>
+        <text text-anchor="middle" x="${rasterXPosition}" y="${graphHeight + rasterLineLength + rasterLabelMargin}">
+          ${Math.floor((this.trainingMses.length / nrOfXRasterLines) * rasterIndex)}
+        </text>`;
     }
 
     const svgString =
@@ -217,8 +223,8 @@
           <line stroke-width="1" stroke="grey" x1="0" y1="${svgHeight}" x2="${svgWidth}" y2="${svgHeight}"></line>
           <line stroke-width="1" stroke="grey" x1="0" y1="${svgHeight}" x2="0"  y2="0"></line>
          </svg>
-         <text text-anchor="middle" x="${svgWidth / 2}" y="${svgHeight - 5}">Epoch</text>
-         <text text-anchor="middle" style="writing-mode: tb;" x="5" y="${svgHeight / 2}">MSE</text>
+         <text text-anchor="middle" x="${graphXMargin + (svgWidth / 2)}" y="${svgHeight - 5}">Epoch</text>
+         <text text-anchor="middle" style="writing-mode: tb;" x="5" y="${graphHeight / 2}">MSE</text>
 
          ${rasterString}
        </svg>`;
